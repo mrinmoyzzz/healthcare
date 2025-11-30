@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Patient Health Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* === GLOBAL RESET === */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top left, #4f46e5, #020617 60%, #0f172a);
+      overflow: hidden;
+      color: #f9fafb;
+    }
+
+    /* Floating background blobs for iOS liquid effect */
+    .blob {
+      position: fixed;
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle, rgba(96, 165, 250, 0.7), transparent 60%);
+      filter: blur(40px);
+      opacity: 0.6;
+      animation: float 16s infinite ease-in-out alternate;
+      z-index: 0;
+    }
+
+    .blob:nth-child(1) {
+      top: -80px;
+      left: -60px;
+    }
+
+    .blob:nth-child(2) {
+      bottom: -120px;
+      right: -80px;
+      animation-duration: 20s;
+    }
+
+    .blob:nth-child(3) {
+      top: 40%;
+      left: 60%;
+      animation-duration: 18s;
+    }
+
+    @keyframes float {
+      0% { transform: translate3d(0, 0, 0) scale(1); }
+      100% { transform: translate3d(40px, -30px, 0) scale(1.1); }
+    }
+
+    /* Glass container */
+    .glass-card {
+      position: relative;
+      z-index: 1;
+      width: 95%;
+      max-width: 1100px;
+      min-height: 540px;
+      border-radius: 32px;
+      background: linear-gradient(
+          135deg,
+          rgba(15, 23, 42, 0.9),
+          rgba(15, 23, 42, 0.7)
+        );
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow:
+        0 0 0 1px rgba(15, 23, 42, 0.8),
+        0 24px 80px rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(26px) saturate(140%);
+      -webkit-backdrop-filter: blur(26px) saturate(140%);
+      padding: 24px 28px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: cardIntro 0.9s ease-out;
+    }
+
+    @keyframes cardIntro {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* LOGIN VIEW */
+    #login-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 16px;
+    }
+
+    .app-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 26px;
+      background: radial-gradient(circle at 20% 20%, #a5b4fc, #4f46e5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      box-shadow: 0 18px 40px rgba(79, 70, 229, 0.65);
+      animation: floatSoft 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes floatSoft {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-6px); }
+    }
+
+    .login-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .login-subtitle {
+      font-size: 14px;
+      color: #cbd5f5;
+      max-width: 320px;
+      line-height: 1.5;
+    }
+
+    .login-input-wrapper {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: radial-gradient(circle at top left, rgba(148, 163, 184, 0.28), transparent 70%);
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    .login-input-wrapper input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #e5e7eb;
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .login-input-wrapper input::placeholder {
+      color: #9ca3af;
+    }
+
+    .btn-primary {
+      border: none;
+      outline: none;
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #f9fafb;
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.7);
+      transform: translateY(0);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 32px rgba(129, 140, 248, 0.8);
+      filter: brightness(1.1);
+    }
+
+    .btn-primary:active {
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 8px 18px rgba(79, 70, 229, 0.7);
+    }
+
+    .login-error {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #f97373;
+      min-height: 18px;
+    }
+
+    .shake {
+      animation: shake 0.4s ease;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-6px); }
+      80% { transform: translateX(6px); }
+    }
+
+    /* DASHBOARD */
+    #dashboard-view {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      height: 100%;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .top-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .top-title {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .top-subtitle {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chip {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: radial-gradient(circle at top left, rgba(148, 163, 184, 0.25), transparent 70%);
+      color: #e5e7eb;
+    }
+
+    .btn-ghost {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      padding: 6px 12px;
+      background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+      font-size: 13px;
+      color: #e5e7eb;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-ghost:hover {
+      background: radial-gradient(circle at top left, rgba(51, 65, 85, 0.9), rgba(15, 23, 42, 0.9));
+      transform: translateY(-1px);
+    }
+
+    /* LAYOUT GRID */
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+      gap: 18px;
+      height: 100%;
+    }
+
+    @media (max-width: 900px) {
+      .glass-card {
+        height: 100vh;
+        border-radius: 0;
+        max-width: 100%;
+      }
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: radial-gradient(circle at top left, rgba(148, 163, 184, 0.32), rgba(15, 23, 42, 0.92));
+      border-radius: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      padding: 16px 16px 18px;
+      box-shadow:
+        0 10px 30px rgba(15, 23, 42, 0.9),
+        inset 0 0 0 1px rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(24px) saturate(140%);
+      -webkit-backdrop-filter: blur(24px) saturate(140%);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .panel-subtitle {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    /* FORM */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 12px;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+    }
+
+    .field label {
+      color: #cbd5f5;
+    }
+
+    .field input, .field select {
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.95));
+      padding: 7px 10px;
+      font-size: 13px;
+      color: #e5e7eb;
+      outline: none;
+    }
+
+    .field input::placeholder {
+      color: #6b7280;
+    }
+
+    .field input:focus, .field select:focus {
+      border-color: #818cf8;
+      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.7);
+    }
+
+    .form-footer {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .btn-secondary {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      padding: 7px 12px;
+      font-size: 12px;
+      background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+      color: #e5e7eb;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-secondary:hover {
+      background: radial-gradient(circle at top left, rgba(30, 64, 175, 0.9), rgba(15, 23, 42, 0.9));
+      transform: translateY(-1px);
+    }
+
+    /* TABLE + CHARTS */
+    .data-panel-layout {
+      display: grid;
+      grid-template-rows: minmax(0, 1.1fr) minmax(0, 1.2fr);
+      gap: 10px;
+      height: 100%;
+    }
+
+    .table-wrapper {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.86));
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      padding: 8px 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .table-header span {
+      color: #9ca3af;
+      font-size: 11px;
+    }
+
+    .table-scroll {
+      margin-top: 2px;
+      overflow: auto;
+      max-height: 170px;
+      padding-right: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: rgba(15, 23, 42, 0.98);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 1;
+    }
+
+    th, td {
+      padding: 5px 6px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      font-weight: 600;
+      color: #9ca3af;
+      border-bottom: 1px solid rgba(55, 65, 81, 0.9);
+    }
+
+    tbody tr {
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.05s ease;
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    tbody tr:hover {
+      background: rgba(56, 78, 126, 0.9);
+      transform: translateY(-1px);
+    }
+
+    .row-selected {
+      background: rgba(79, 70, 229, 0.85) !important;
+    }
+
+    .pill-high {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(248, 113, 113, 0.18);
+      border: 1px solid rgba(248, 113, 113, 0.6);
+      color: #fecaca;
+    }
+
+    .pill-ok {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(22, 163, 74, 0.12);
+      border: 1px solid rgba(22, 163, 74, 0.6);
+      color: #bbf7d0;
+    }
+
+    .charts-wrapper {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
+      gap: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .charts-wrapper {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-card {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.88));
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      padding: 8px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .chart-title {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .chart-caption {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 160px !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Background blobs -->
+  <div class="blob"></div>
+  <div class="blob"></div>
+  <div class="blob"></div>
+
+  <!-- Main Glass Card -->
+  <div class="glass-card" id="glass-card">
+    
+    <!-- LOGIN VIEW -->
+    <div id="login-view">
+      <div class="app-icon">💓</div>
+      <h1 class="login-title">Patient Health Vault</h1>
+      <p class="login-subtitle">
+        Securely view and analyze patient blood pressure data with a clean UI dashboard.
+      </p>
+
+      <div class="login-input-wrapper" id="login-box">
+        <input
+          type="password"
+          id="password-input"
+          placeholder="Enter access password"
+        />
+        <button class="btn-primary" id="login-btn">Unlock</button>
+      </div>
+      <div class="login-error" id="login-error"></div>
+    </div>
+
+    <!-- DASHBOARD VIEW -->
+    <div id="dashboard-view" class="hidden">
+      <!-- Top bar -->
+      <div class="top-bar">
+        <div class="top-left">
+          <div class="top-title">Patient Health Dashboard</div>
+          <div class="top-subtitle">Add patients, then tap a row to see BP vs age-normal levels.</div>
+        </div>
+        <div class="top-actions">
+          <div class="chip">Demo • Not for real medical use</div>
+          <button class="btn-ghost" id="logout-btn">Log out</button>
+        </div>
+      </div>
+
+      <!-- Main layout -->
+      <div class="main-grid">
+        <!-- FORM PANEL -->
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">New Patient</div>
+              <div class="panel-subtitle">Enter basic details and blood pressure readings.</div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="name">Name</label>
+              <input id="name" type="text" placeholder="e.g. Anya Singh" />
+            </div>
+
+            <div class="field">
+              <label for="age">Age</label>
+              <input id="age" type="number" min="0" placeholder="e.g. 35" />
+            </div>
+
+            <div class="field">
+              <label for="gender">Gender</label>
+              <select id="gender">
+                <option value="">Select</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="systolic">Systolic BP (upper)</label>
+              <input id="systolic" type="number" min="0" placeholder="e.g. 130" />
+            </div>
+
+            <div class="field">
+              <label for="diastolic">Diastolic BP (lower)</label>
+              <input id="diastolic" type="number" min="0" placeholder="e.g. 85" />
+            </div>
+
+            <div class="field">
+              <label for="notes">Notes (optional)</label>
+              <input id="notes" type="text" placeholder="e.g. on medication, follow-up due" />
+            </div>
+          </div>
+
+          <div class="form-footer">
+            <div class="hint">
+              Tip: Click on any patient row to see if their BP is higher than normal for their age.
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn-secondary" id="clear-form-btn">Clear</button>
+              <button class="btn-primary" id="save-patient-btn">Save Patient</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- DATA PANEL -->
+        <section class="panel">
+          <div class="data-panel-layout">
+            <!-- TABLE -->
+            <div class="table-wrapper">
+              <div class="table-header">
+                <div>Patients</div>
+                <span>Tap a row to inspect BP vs normal</span>
+              </div>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Age</th>
+                      <th>Systolic</th>
+                      <th>Diastolic</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="patients-tbody">
+                    <!-- rows injected via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- CHARTS -->
+            <div class="charts-wrapper">
+              <div class="chart-card">
+                <div class="chart-title">Overall Systolic Blood Pressure</div>
+                <div class="chart-caption">Overview of systolic BP across all patients (tap row to focus on one).</div>
+                <canvas id="overallChart"></canvas>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-title" id="selected-chart-title">
+                  Select a patient row to see details
+                </div>
+                <div class="chart-caption" id="selected-chart-caption">
+                  We'll compare this patient's BP with age-normal recommended values.
+                </div>
+                <canvas id="patientChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== CONFIG =====
+    const APP_PASSWORD = "admin123"; // change this for your project
+
+    // ===== STATE =====
+    let patients = [];
+    let overallChart;
+    let patientChart;
+    let selectedRowIndex = null;
+
+    // ===== ELEMENTS =====
+    const loginView = document.getElementById("login-view");
+    const dashboardView = document.getElementById("dashboard-view");
+    const passwordInput = document.getElementById("password-input");
+    const loginBtn = document.getElementById("login-btn");
+    const loginError = document.getElementById("login-error");
+    const loginBox = document.getElementById("login-box");
+    const logoutBtn = document.getElementById("logout-btn");
+
+    const nameInput = document.getElementById("name");
+    const ageInput = document.getElementById("age");
+    const genderInput = document.getElementById("gender");
+    const systolicInput = document.getElementById("systolic");
+    const diastolicInput = document.getElementById("diastolic");
+    const notesInput = document.getElementById("notes");
+    const savePatientBtn = document.getElementById("save-patient-btn");
+    const clearFormBtn = document.getElementById("clear-form-btn");
+
+    const patientsTbody = document.getElementById("patients-tbody");
+    const selectedChartTitle = document.getElementById("selected-chart-title");
+    const selectedChartCaption = document.getElementById("selected-chart-caption");
+
+    // ===== LOGIN LOGIC =====
+    loginBtn.addEventListener("click", handleLogin);
+    passwordInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") handleLogin();
+    });
+
+    function handleLogin() {
+      const value = passwordInput.value.trim();
+      if (value === APP_PASSWORD) {
+        loginError.textContent = "";
+        loginView.classList.add("hidden");
+        dashboardView.classList.remove("hidden");
+      } else {
+        loginError.textContent = "Incorrect password. Try again.";
+        loginBox.classList.remove("shake");
+        void loginBox.offsetWidth; // restart animation
+        loginBox.classList.add("shake");
+      }
+    }
+
+    logoutBtn.addEventListener("click", () => {
+      dashboardView.classList.add("hidden");
+      loginView.classList.remove("hidden");
+      passwordInput.value = "";
+    });
+
+    // ===== FORM LOGIC =====
+    clearFormBtn.addEventListener("click", () => {
+      clearForm();
+    });
+
+    function clearForm() {
+      nameInput.value = "";
+      ageInput.value = "";
+      genderInput.value = "";
+      systolicInput.value = "";
+      diastolicInput.value = "";
+      notesInput.value = "";
+    }
+
+    savePatientBtn.addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      const age = parseInt(ageInput.value, 10);
+      const gender = genderInput.value;
+      const systolic = parseInt(systolicInput.value, 10);
+      const diastolic = parseInt(diastolicInput.value, 10);
+      const notes = notesInput.value.trim();
+
+      if (!name || isNaN(age) || isNaN(systolic) || isNaN(diastolic)) {
+        alert("Please enter at least Name, Age, Systolic and Diastolic BP.");
+        return;
+      }
+
+      const patient = {
+        id: Date.now(),
+        name,
+        age,
+        gender,
+        systolic,
+        diastolic,
+        notes
+      };
+
+      patients.push(patient);
+      clearForm();
+      renderPatientsTable();
+      updateOverallChart();
+    });
+
+    // ===== TABLE RENDERING =====
+    function renderPatientsTable() {
+      patientsTbody.innerHTML = "";
+
+      patients.forEach((p, index) => {
+        const tr = document.createElement("tr");
+        tr.dataset.index = index;
+
+        const normal = getNormalBP(p.age);
+        const isHigh = p.systolic > normal.systolic || p.diastolic > normal.diastolic;
+
+        tr.innerHTML = `
+          <td>${p.name}</td>
+          <td>${p.age}</td>
+          <td>${p.systolic}</td>
+          <td>${p.diastolic}</td>
+          <td>
+            <span class="${isHigh ? "pill-high" : "pill-ok"}">
+              ${isHigh ? "High vs age" : "Within range"}
+            </span>
+          </td>
+        `;
+
+        tr.addEventListener("click", () => {
+          handleRowClick(index);
+        });
+
+        patientsTbody.appendChild(tr);
+      });
+
+      highlightSelectedRow();
+    }
+
+    function handleRowClick(index) {
+      selectedRowIndex = index;
+      highlightSelectedRow();
+
+      const patient = patients[index];
+      updatePatientChart(patient);
+    }
+
+    function highlightSelectedRow() {
+      const rows = patientsTbody.querySelectorAll("tr");
+      rows.forEach((row, idx) => {
+        if (idx === selectedRowIndex) {
+          row.classList.add("row-selected");
+        } else {
+          row.classList.remove("row-selected");
+        }
+      });
+    }
+
+    // ===== NORMAL BP CALCULATION =====
+    // Simple demo ranges (not medical advice):
+    // <40 years: 120/80
+    // 40-59 years: 130/85
+    // >=60 years: 140/90
+    function getNormalBP(age) {
+      if (age < 40) {
+        return { systolic: 120, diastolic: 80 };
+      } else if (age < 60) {
+        return { systolic: 130, diastolic: 85 };
+      } else {
+        return { systolic: 140, diastolic: 90 };
+      }
+    }
+
+    // ===== CHARTS INIT =====
+    function initCharts() {
+      const overallCtx = document.getElementById("overallChart").getContext("2d");
+      const patientCtx = document.getElementById("patientChart").getContext("2d");
+
+      overallChart = new Chart(overallCtx, {
+        type: "bar",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "Systolic BP",
+              data: [],
+              backgroundColor: "rgba(129, 140, 248, 0.8)",
+              borderWidth: 0,
+              borderRadius: 14
+            }
+          ]
+        },
+        options: {
+          plugins: {
+            legend: {
+              labels: {
+                color: "#e5e7eb"
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: "#9ca3af" },
+              grid: { display: false }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { color: "#9ca3af" },
+              grid: { color: "rgba(55,65,81,0.6)" }
+            }
+          }
+        }
+      });
+
+      patientChart = new Chart(patientCtx, {
+        type: "bar",
+        data: {
+          labels: ["Systolic", "Diastolic"],
+          datasets: [
+            {
+              label: "Patient BP",
+              data: [0, 0],
+              backgroundColor: "rgba(56, 189, 248, 0.8)",
+              borderRadius: 14
+            },
+            {
+              label: "Normal for Age",
+              data: [0, 0],
+              backgroundColor: "rgba(248, 250, 252, 0.6)",
+              borderRadius: 14
+            }
+          ]
+        },
+        options: {
+          plugins: {
+            legend: {
+              labels: {
+                color: "#e5e7eb"
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: "#9ca3af" },
+              grid: { display: false }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { color: "#9ca3af" },
+              grid: { color: "rgba(55,65,81,0.6)" }
+            }
+          }
+        }
+      });
+    }
+
+    function updateOverallChart() {
+      if (!overallChart) return;
+
+      overallChart.data.labels = patients.map((p) => p.name);
+      overallChart.data.datasets[0].data = patients.map((p) => p.systolic);
+      overallChart.update();
+    }
+
+    function updatePatientChart(patient) {
+      if (!patientChart) return;
+
+      const normal = getNormalBP(patient.age);
+      patientChart.data.datasets[0].data = [patient.systolic, patient.diastolic];
+      patientChart.data.datasets[1].data = [normal.systolic, normal.diastolic];
+      patientChart.update();
+
+      selectedChartTitle.textContent = `BP vs Normal • ${patient.name} (${patient.age} yrs)`;
+      selectedChartCaption.textContent =
+        "Blue bars are the patient's measured BP, white bars show an approximate age-normal level.";
+    }
+
+    // Initialize charts once DOM is ready
+    document.addEventListener("DOMContentLoaded", () => {
+      initCharts();
+    });
+  </script>
+</body>
+</html>
